@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Russisch-Vokabeltrainer: Wohnungssuche</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --success-color: #2ecc71;
+            --error-color: #e74c3c;
+            --bg-color: #f4f7f6;
+            --text-color: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+
+        p.instruction {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .word-card {
+            background: #fff;
+            border: 2px solid #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 50px;
+        }
+
+        /* Responsive Anpassung für kleine Bildschirme */
+        @media (max-width: 600px) {
+            .word-card {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+            .game-board {
+                gap: 10px;
+            }
+        }
+
+        .word-card:hover {
+            border-color: var(--primary-color);
+            background: #f0f7ff;
+        }
+
+        .word-card.selected {
+            border-color: var(--primary-color);
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .word-card.matched {
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .word-card.error {
+            border-color: var(--error-color);
+            background: #fadbd8;
+            animation: shake 0.4s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .success-message {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .btn-restart {
+            background: var(--success-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="game-ui">
+        <h1>Wortschatz-Matching</h1>
+        <p class="instruction">Klicke zuerst ein russisches Wort und dann die passende deutsche Übersetzung an.</p>
+        
+        <div class="game-board">
+            <div class="column" id="russian-column"></div>
+            <div class="column" id="german-column"></div>
+        </div>
+    </div>
+
+    <div id="success-ui" class="success-message">
+        <h2>Gut gemacht! 🎉</h2>
+        <p>Du hast alle Begriffe richtig zugeordnet.</p>
+        <button class="btn-restart" onclick="initGame()">Nochmal spielen</button>
+    </div>
+</div>
+
+<script>
+    const vocabulary = [
+        { ru: "стиральная машина", de: "Waschmaschine" },
+        { ru: "этаж", de: "Stockwerk" },
+        { ru: "лифт", de: "Aufzug" },
+        { ru: "мебель", de: "Möbel" },
+        { ru: "техника", de: "Elektrogeräte" },
+        { ru: "снять квартиру", de: "Wohnung mieten" },
+        { ru: "коммуналка", de: "Nebenkosten" },
+        { ru: "гардеробная", de: "Ankleidezimmer" },
+        { ru: "счётчики", de: "Zähler" },
+        { ru: "балкон", de: "Balkon" }
+    ];
+
+    let selectedRu = null;
+    let selectedDe = null;
+    let matches = 0;
+
+    function shuffle(array) {
+        return array.sort(() => Math.random() - 0.5);
+    }
+
+    function initGame() {
+        matches = 0;
+        document.getElementById('game-ui').style.display = 'block';
+        document.getElementById('success-ui').style.display = 'none';
+        
+        const ruCol = document.getElementById('russian-column');
+        const deCol = document.getElementById('german-column');
+        
+        ruCol.innerHTML = '';
+        deCol.innerHTML = '';
+
+        const shuffledRu = shuffle([...vocabulary]);
+        const shuffledDe = shuffle([...vocabulary]);
+
+        shuffledRu.forEach(item => {
+            const card = createCard(item.ru, 'ru', item.ru);
+            ruCol.appendChild(card);
+        });
+
+        shuffledDe.forEach(item => {
+            const card = createCard(item.de, 'de', item.ru); // wir speichern die ru-ID zum Abgleich
+            deCol.appendChild(card);
+        });
+    }
+
+    function createCard(text, type, matchId) {
+        const card = document.createElement('div');
+        card.className = 'word-card';
+        card.textContent = text;
+        card.dataset.type = type;
+        card.dataset.id = matchId;
+
+        card.addEventListener('click', () => handleSelection(card));
+        return card;
+    }
+
+    function handleSelection(card) {
+        if (card.classList.contains('matched')) return;
+
+        const type = card.dataset.type;
+
+        // Auswahl-Logik
+        if (type === 'ru') {
+            if (selectedRu) selectedRu.classList.remove('selected');
+            selectedRu = card;
+        } else {
+            if (selectedDe) selectedDe.classList.remove('selected');
+            selectedDe = card;
+        }
+        card.classList.add('selected');
+
+        // Check Match
+        if (selectedRu && selectedDe) {
+            if (selectedRu.dataset.id === selectedDe.dataset.id) {
+                // Erfolg
+                selectedRu.classList.add('matched');
+                selectedDe.classList.add('matched');
+                matches++;
+                resetSelection();
+                if (matches === vocabulary.length) showSuccess();
+            } else {
+                // Fehler
+                const tempRu = selectedRu;
+                const tempDe = selectedDe;
+                tempRu.classList.add('error');
+                tempDe.classList.add('error');
+                resetSelection();
+                setTimeout(() => {
+                    tempRu.classList.remove('error', 'selected');
+                    tempDe.classList.remove('error', 'selected');
+                }, 400);
+            }
+        }
+    }
+
+    function resetSelection() {
+        selectedRu = null;
+        selectedDe = null;
+    }
+
+    function showSuccess() {
+        setTimeout(() => {
+            document.getElementById('game-ui').style.display = 'none';
+            document.getElementById('success-ui').style.display = 'block';
+        }, 500);
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>
