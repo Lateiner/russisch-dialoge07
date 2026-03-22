@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vokabeltrainer: Russisch - Deutsch</title>
+    <style>
+        :root {
+            --bg-color: #f0f7f0;
+            --card-front-bg: #ffffff;
+            --card-back-bg: #e6f4ea;
+            --primary-green: #2d6a4f;
+            --secondary-green: #40916c;
+            --accent-green: #d8f3dc;
+            --text-color: #1b4332;
+            --shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: var(--primary-green);
+            margin: 0;
+            font-size: 1.8rem;
+        }
+
+        .progress {
+            margin-top: 10px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--secondary-green);
+        }
+
+        /* Flashcard Container */
+        .flashcard-wrapper {
+            perspective: 1000px;
+            width: 100%;
+            max-width: 500px;
+            height: 300px;
+            cursor: pointer;
+            margin: 20px 0;
+        }
+
+        .flashcard {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+            box-shadow: var(--shadow);
+            border-radius: 20px;
+        }
+
+        .flashcard.is-flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            border-radius: 20px;
+            border: 2px solid var(--accent-green);
+        }
+
+        .card-front {
+            background-color: var(--card-front-bg);
+        }
+
+        .card-back {
+            background-color: var(--card-back-bg);
+            transform: rotateY(180deg);
+        }
+
+        .content {
+            font-size: 2rem;
+            font-weight: bold;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .label {
+            position: absolute;
+            top: 15px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--secondary-green);
+        }
+
+        /* Controls */
+        .controls, .actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            width: 100%;
+            max-width: 500px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            background-color: var(--primary-green);
+            color: white;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            flex: 1;
+            min-width: 140px;
+        }
+
+        button:hover {
+            background-color: var(--secondary-green);
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-action {
+            background-color: var(--secondary-green);
+        }
+
+        .hint {
+            margin-top: 30px;
+            font-size: 0.85rem;
+            color: #666;
+            text-align: center;
+            max-width: 500px;
+        }
+
+        @media (max-width: 400px) {
+            .flashcard-wrapper { height: 250px; }
+            .content { font-size: 1.5rem; }
+            h1 { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Russisch Vokabeltrainer</h1>
+    <div class="progress" id="progress-display">1 / 70</div>
+</header>
+
+<div class="flashcard-wrapper" id="card-wrapper" title="Klicken oder Leertaste zum Umdrehen">
+    <div class="flashcard" id="card">
+        <div class="card-face card-front">
+            <span class="label">Russisch</span>
+            <div class="content" id="front-content">кварти́ра</div>
+        </div>
+        <div class="card-face card-back">
+            <span class="label">Deutsch</span>
+            <div class="content" id="back-content">Wohnung</div>
+        </div>
+    </div>
+</div>
+
+<div class="controls">
+    <button id="prev-btn">← Vorherige</button>
+    <button id="next-btn">Nächste →</button>
+</div>
+
+<div class="actions">
+    <button id="shuffle-btn" class="btn-action">🔀 Mischen</button>
+    <button id="start-btn" class="btn-action">🏠 An den Anfang</button>
+</div>
+
+<div class="hint">
+    Tipp: Nutze die Pfeiltasten (← →) zum Navigieren und die Leertaste zum Umdrehen. <br>
+    Die Taste "Pos1" führt zum Anfang.
+</div>
+
+<script>
+    const vocabData = [
+        ["кварти́ра", "Wohnung"], ["ко́мната", "Zimmer"], ["кварти́ра-сту́дия", "Studio-Wohnung"],
+        ["одноко́мнатная кварти́ра", "Ein-Zimmer-Wohnung"], ["двухко́мнатная кварти́ра", "Zwei-Zimmer-Wohnung"],
+        ["трёхко́мнатная кварти́ра", "Drei-Zimmer-Wohnung"], ["снима́ть / снять", "mieten"],
+        ["арендова́ть", "anmieten (formell)"], ["сдава́ть / сдать", "vermieten"],
+        ["аре́нда", "Miete / Vermietung"], ["сто́имость / цена́", "Preis / Kosten"],
+        ["рие́лтор / аге́нт по недви́жимости", "Immobilienmakler"], ["аге́нтство", "Agentur"],
+        ["райо́н", "Stadtviertel / Bezirk"], ["метро́", "U-Bahn (Metro)"], ["центр го́рода", "Stadtzentrum"],
+        ["остано́вка авто́буса", "Bushaltestelle"], ["пешко́м", "zu Fuß"], ["пе́шая досту́пность", "fußläufige Entfernung"],
+        ["эта́ж", "Stockwerk"], ["пе́рвый эта́ж", "Erdgeschoss"], ["после́дний эта́ж", "oberstes Stockwerk"],
+        ["лифт", "Aufzug"], ["подъе́зд", "Hauseingang / Treppenhaus"], ["консье́рж", "Concierge / Pförtner"],
+        ["плати́ть / заплати́ть", "bezahlen"], ["коммуна́льные услу́ги / коммуна́лка", "Nebenkosten"],
+        ["счётчики", "Zähler (für Strom, Wasser)"], ["догово́р", "Vertrag"],
+        ["заключа́ть / заключи́ть догово́р", "Vertrag abschließen"], ["въезжа́ть / въе́хать", "einziehen"],
+        ["переезжа́ть / перее́хать", "umziehen"], ["иска́ть / поиска́ть", "suchen"],
+        ["звони́ть / позвони́ть", "anrufen"], ["ме́бель", "Möbel"], ["те́хника", "Elektrogeräte / Technik"],
+        ["холоди́льник", "Kühlschrank"], ["стира́льная маши́на", "Waschmaschine"],
+        ["посудомо́ечная маши́на", "Spülmaschine"], ["плита́", "Herd"], ["микрово́лновка", "Mikrowelle"],
+        ["телеви́зор", "Fernseher"], ["крова́ть", "Bett"], ["шкаф", "Schrank"], ["стул", "Stuhl"],
+        ["стол", "Tisch"], ["балко́н", "Balkon"], ["ло́джия", "Loggia"], ["ку́хня", "Küche"],
+        ["ку́хня-гости́ная", "Wohnküche"], ["ва́нная ко́мната / ва́нная", "Badezimmer"],
+        ["душ", "Dusche"], ["коридо́р", "Flur / Korridor"], ["кладо́вка", "Abstellkammer"],
+        ["гардеро́бная", "Ankleidezimmer"], ["дома́шние живо́тные", "Haustiere"], ["ко́шка", "Katze"],
+        ["соба́ка", "Hund"], ["жильцы́", "Mieter / Bewohner"], ["хозя́ин / хозя́йка", "Vermieter / Eigentümer"],
+        ["актуа́льный", "aktuell"], ["удо́бный", "bequem / praktisch"], ["необяза́тельно", "optional"],
+        ["до́рого", "teuer"], ["дёшево", "billig"], ["ря́дом", "in der Nähe"], ["далеко́", "weit weg"],
+        ["вариа́нт", "Option / Variante"], ["пе́риод", "Zeitraum / Periode"], ["парко́вка", "Parkplatz / Parken"]
+    ];
+
+    let currentCards = [...vocabData];
+    let currentIndex = 0;
+    let isFlipped = false;
+
+    const card = document.getElementById('card');
+    const frontContent = document.getElementById('front-content');
+    const backContent = document.getElementById('back-content');
+    const progressDisplay = document.getElementById('progress-display');
+
+    function updateCard() {
+        isFlipped = false;
+        card.classList.remove('is-flipped');
+        
+        const [front, back] = currentCards[currentIndex];
+        frontContent.textContent = front;
+        backContent.textContent = back;
+        
+        progressDisplay.textContent = `${currentIndex + 1} / ${currentCards.length}`;
+        adjustFontSize(frontContent);
+        adjustFontSize(backContent);
+    }
+
+    function flipCard() {
+        isFlipped = !isFlipped;
+        card.classList.toggle('is-flipped');
+    }
+
+    function nextCard() {
+        if (currentIndex < currentCards.length - 1) {
+            currentIndex++;
+            updateCard();
+        }
+    }
+
+    function prevCard() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            updateCard();
+        }
+    }
+
+    function shuffleCards() {
+        for (let i = currentCards.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [currentCards[i], currentCards[j]] = [currentCards[j], currentCards[i]];
+        }
+        currentIndex = 0;
+        updateCard();
+    }
+
+    function goToStart() {
+        currentIndex = 0;
+        updateCard();
+    }
+
+    // Automatische Schriftgrößenanpassung
+    function adjustFontSize(el) {
+        const length = el.textContent.length;
+        if (length > 30) {
+            el.style.fontSize = "1.2rem";
+        } else if (length > 20) {
+            el.style.fontSize = "1.5rem";
+        } else {
+            el.style.fontSize = "2rem";
+        }
+    }
+
+    // Event Listeners Buttons
+    document.getElementById('card-wrapper').addEventListener('click', flipCard);
+    document.getElementById('next-btn').addEventListener('click', nextCard);
+    document.getElementById('prev-btn').addEventListener('click', prevCard);
+    document.getElementById('shuffle-btn').addEventListener('click', shuffleCards);
+    document.getElementById('start-btn').addEventListener('click', goToStart);
+
+    // Keyboard Events
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.code === 'Enter') {
+            e.preventDefault();
+            flipCard();
+        } else if (e.code === 'ArrowRight') {
+            nextCard();
+        } else if (e.code === 'ArrowLeft') {
+            prevCard();
+        } else if (e.code === 'Home') {
+            goToStart();
+        }
+    });
+
+    // Initialisierung
+    updateCard();
+</script>
+
+</body>
+</html>
