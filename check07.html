@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suchanzeige-Check: Ksenijas Wohnung</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f0f2f5;
+            --text: #2d3436;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .instruction { color: #636e72; margin-bottom: 30px; line-height: 1.4; }
+
+        /* Anzeige-Karten */
+        .ads-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .ad-card {
+            background: #fff;
+            border: 2px solid #ddd;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ad-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .ad-card h3 {
+            margin-top: 0;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .price {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #2ecc71;
+            margin: 10px 0;
+        }
+
+        .details {
+            font-size: 0.9rem;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .details li {
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Feedback Styles */
+        .ad-card.correct { border-color: var(--success); background-color: #f1f9f4; }
+        .ad-card.wrong { border-color: var(--error); background-color: #fef1f1; opacity: 0.7; }
+
+        .feedback-label {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        #status-msg {
+            font-weight: bold;
+            font-size: 1.1rem;
+            min-height: 1.5em;
+            margin-bottom: 20px;
+        }
+
+        .restart-btn {
+            background: var(--text);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: none;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 600px) {
+            .ads-grid { grid-template-columns: 1fr; }
+            .container { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Какой вариант подходит Ксении?</h2>
+    <p class="instruction">
+        Erinnerst du dich an Ksenijas Wünsche? <br>
+        (1-Zimmer, bis 35.000₽, <b>nicht</b> 1. Stock, Haustiere erlaubt, Wasch- & Spülmaschine).
+    </p>
+
+    <div id="status-msg">Wähle die passende Anzeige aus!</div>
+
+    <div class="ads-grid" id="ads-container">
+        <!-- Anzeige 1 (Falsch: Stockwerk) -->
+        <div class="ad-card" onclick="checkAd(0, this)">
+            <h3>Вариант А: Юго-Западная</h3>
+            <div class="price">28.000 ₽ / мес.</div>
+            <ul class="details">
+                <li>📍 5 мин. пешком от метро</li>
+                <li>🏢 <b>1 этаж</b> / 9</li>
+                <li>✅ Мебель и техника</li>
+                <li>✅ Стиральная машина</li>
+                <li>🐾 Можно с животными</li>
+            </ul>
+        </div>
+
+        <!-- Anzeige 2 (Richtig) -->
+        <div class="ad-card" onclick="checkAd(1, this)">
+            <h3>Вариант Б: Тропарёво</h3>
+            <div class="price">34.500 ₽ / мес.</div>
+            <ul class="details">
+                <li>📍 10 мин. пешком от метро</li>
+                <li>🏢 5 этаж / 12 (есть лифт)</li>
+                <li>✅ Посудомоечная машина</li>
+                <li>✅ Стиральная машина</li>
+                <li>🐾 <b>Можно с кошкой</b></li>
+            </ul>
+        </div>
+
+        <!-- Anzeige 3 (Falsch: Tiere) -->
+        <div class="ad-card" onclick="checkAd(2, this)">
+            <h3>Вариант В: Пр-т Вернадского</h3>
+            <div class="price">32.000 ₽ / мес.</div>
+            <ul class="details">
+                <li>📍 15 мин. пешком от метро</li>
+                <li>🏢 4 этаж / 10</li>
+                <li>✅ Мебель и техника</li>
+                <li>✅ Балкон и гардеробная</li>
+                <li>🚫 <b>Без животных!</b></li>
+            </ul>
+        </div>
+    </div>
+
+    <button class="restart-btn" id="restart-btn" onclick="location.reload()">Neustart</button>
+</div>
+
+<script>
+    const explanations = [
+        "Falsch: Ksenija möchte ausdrücklich nicht im 1. Stock (Erdgeschoss) wohnen.",
+        "Правильно! ✓ Diese Anzeige erfüllt alle Kriterien: Preis, Lage, Stockwerk und die Katze ist erlaubt.",
+        "Falsch: In dieser Wohnung sind keine Tiere erlaubt (Без животных), aber Ksenija hat eine Katze."
+    ];
+
+    let gameOver = false;
+
+    function checkAd(index, element) {
+        if (gameOver) return;
+
+        const statusMsg = document.getElementById('status-msg');
+        
+        if (index === 1) {
+            // Richtig
+            element.classList.add('correct');
+            element.innerHTML += '<div class="feedback-label" style="color:green">✓</div>';
+            statusMsg.textContent = explanations[index];
+            statusMsg.style.color = "var(--success)";
+            gameOver = true;
+            document.getElementById('restart-btn').style.display = "block";
+        } else {
+            // Falsch
+            element.classList.add('wrong');
+            element.innerHTML += '<div class="feedback-label" style="color:red">✗</div>';
+            statusMsg.textContent = explanations[index];
+            statusMsg.style.color = "var(--error)";
+        }
+    }
+</script>
+
+</body>
+</html>
