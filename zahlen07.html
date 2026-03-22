@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zahlen-Match: Ksenijas Wohnung</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --success: #2ecc71;
+            --error: #e74c3c;
+            --bg: #f8f9fa;
+            --text-dark: #2d3436;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 700px;
+            width: 100%;
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        h2 { margin-bottom: 5px; color: var(--text-dark); }
+        .description { color: #636e72; margin-bottom: 25px; font-size: 0.95rem; }
+
+        /* Spielfeld-Layout */
+        .game-grid {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            gap: 15px;
+            min-height: 420px;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .header {
+            font-weight: bold;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #b2bec3;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .card {
+            background: #ffffff;
+            border: 2px solid #dfe6e9;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            user-select: none;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .card-desc {
+            font-size: 0.95rem;
+            text-align: left;
+            padding: 12px 15px;
+            font-weight: 500;
+        }
+
+        /* Auswahl-Zustand */
+        .card.selected {
+            border-color: var(--primary);
+            background-color: #ebf5fb;
+            transform: translateY(-2px);
+        }
+
+        /* Verschwinden bei Erfolg */
+        .card.matched {
+            opacity: 0;
+            transform: scale(0.5);
+            pointer-events: none;
+            visibility: hidden;
+        }
+
+        .card.error {
+            border-color: var(--error);
+            background-color: #fdedec;
+            animation: shake 0.4s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* Lösung-Ansicht */
+        .solution-view {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .solution-item {
+            padding: 12px 20px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            border-left: 6px solid;
+        }
+
+        /* Steuerung */
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .btn-restart { background: var(--text-dark); color: white; }
+        .btn-solution { background: #95a5a6; color: white; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        #feedback { margin-top: 20px; font-weight: bold; min-height: 24px; }
+
+        @media (max-width: 500px) {
+            .game-grid { grid-template-columns: 85px 1fr; gap: 10px; min-height: 380px; }
+            .card { font-size: 0.9rem; min-height: 55px; }
+            .card-desc { font-size: 0.85rem; padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Zahlen & Fakten</h2>
+    <p class="description">Ordne die Zahlen ihrer Bedeutung zu. Richtige Paare verschwinden.</p>
+
+    <div id="game-area">
+        <div class="game-grid">
+            <div class="column">
+                <div class="header">Zahl</div>
+                <div id="num-col"></div>
+            </div>
+            <div class="column">
+                <div class="header">Kontext</div>
+                <div id="desc-col"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="solution-area" class="solution-view"></div>
+
+    <div id="feedback"></div>
+
+    <div class="controls">
+        <button class="btn btn-solution" id="solution-btn" onclick="showSolution()">Lösung anzeigen</button>
+        <button class="btn btn-restart" onclick="initGame()">Neustart</button>
+    </div>
+</div>
+
+<script>
+    const data = [
+        { id: 1, num: "35.000", desc: "Бюджет в месяц (Monatsbudget)", color: "#fab1a0" },
+        { id: 2, num: "15", desc: "Минут пешком до метро (Minuten zu Fuß)", color: "#74b9ff" },
+        { id: 3, num: "1", desc: "Первый этаж (Erdgeschoss - abgelehnt)", color: "#a29bfe" },
+        { id: 4, num: "4, 5, 6", desc: "Желаемые этажи (Bevorzugte Stockwerke)", color: "#ffeaa7" },
+        { id: 5, num: "1", desc: "Однокомнатная квартира (Anzahl der Zimmer)", color: "#55efc4" }
+    ];
+
+    let selectedNum = null;
+    let selectedDesc = null;
+    let matchesFound = 0;
+
+    function shuffle(array) {
+        return array.sort(() => Math.random() - 0.5);
+    }
+
+    function initGame() {
+        matchesFound = 0;
+        selectedNum = null;
+        selectedDesc = null;
+        document.getElementById('feedback').textContent = "";
+        document.getElementById('game-area').style.display = "block";
+        document.getElementById('solution-area').style.display = "none";
+        document.getElementById('solution-btn').style.display = "block";
+        
+        const numCol = document.getElementById('num-col');
+        const descCol = document.getElementById('desc-col');
+        numCol.innerHTML = "";
+        descCol.innerHTML = "";
+
+        shuffle([...data]).forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.textContent = item.num;
+            card.onclick = () => selectCard(card, 'num', item.id);
+            numCol.appendChild(card);
+        });
+
+        shuffle([...data]).forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card card-desc';
+            card.textContent = item.desc;
+            card.onclick = () => selectCard(card, 'desc', item.id);
+            descCol.appendChild(card);
+        });
+    }
+
+    function selectCard(card, type, id) {
+        if (card.classList.contains('matched')) return;
+
+        if (type === 'num') {
+            document.querySelectorAll('#num-col .card').forEach(c => c.classList.remove('selected'));
+            selectedNum = { card, id };
+        } else {
+            document.querySelectorAll('#desc-col .card').forEach(c => c.classList.remove('selected'));
+            selectedDesc = { card, id };
+        }
+        card.classList.add('selected');
+
+        if (selectedNum && selectedDesc) checkMatch();
+    }
+
+    function checkMatch() {
+        if (selectedNum.id === selectedDesc.id) {
+            const n = selectedNum.card;
+            const d = selectedDesc.card;
+            setTimeout(() => {
+                n.classList.add('matched');
+                d.classList.add('matched');
+                matchesFound++;
+                if (matchesFound === data.length) {
+                    document.getElementById('feedback').textContent = "Отлично! 🎉 Alles korrekt zugeordnet.";
+                    document.getElementById('feedback').style.color = "var(--success)";
+                    document.getElementById('solution-btn').style.display = "none";
+                }
+            }, 250);
+            selectedNum = null;
+            selectedDesc = null;
+        } else {
+            const n = selectedNum.card;
+            const d = selectedDesc.card;
+            n.classList.add('error');
+            d.classList.add('error');
+            selectedNum = null;
+            selectedDesc = null;
+            setTimeout(() => {
+                n.classList.remove('error', 'selected');
+                d.classList.remove('error', 'selected');
+            }, 500);
+        }
+    }
+
+    function showSolution() {
+        const solArea = document.getElementById('solution-area');
+        solArea.innerHTML = "<h3 style='text-align:center; margin-top:0;'>Zusammenfassung:</h3>";
+        
+        data.forEach(item => {
+            const div = document.createElement('div');
+            div.className = "solution-item";
+            div.style.borderColor = item.color;
+            div.style.backgroundColor = item.color + "33";
+            div.innerHTML = `<strong>${item.num}</strong> <span>➔</span> <span>${item.desc}</span>`;
+            solArea.appendChild(div);
+        });
+
+        document.getElementById('game-area').style.display = "none";
+        solArea.style.display = "flex";
+        document.getElementById('solution-btn').style.display = "none";
+        document.getElementById('feedback').textContent = "Hier kannst du die Fakten noch einmal studieren.";
+        document.getElementById('feedback').style.color = "var(--primary)";
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>
