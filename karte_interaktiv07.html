@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Präzise Metro-Suche</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --success-circle: #000000;
+            --error: #e74c3c;
+            --bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .description { color: #444; margin-bottom: 20px; font-weight: 500; }
+
+        /* Bild-Container */
+        .map-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            max-width: 800px; /* Basisgröße für die Berechnung */
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            line-height: 0;
+        }
+
+        .map-wrapper img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Präzise Hotspots */
+        .hotspot {
+            position: absolute;
+            width: 5.5%; /* Verkleinert für höhere Präzision */
+            padding-bottom: 5.5%; 
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10;
+            transform: translate(-50%, -50%);
+            transition: all 0.2s;
+            /* background: rgba(0,0,255,0.1); */ /* Zum Testen der Position aktivieren */
+        }
+
+        /* Der schwarze Ziel-Kreis */
+        .hotspot.correct-hit {
+            border: 5px solid var(--success-circle);
+            background: transparent;
+            z-index: 15;
+            box-sizing: border-box;
+        }
+
+        /* Fehler-Animation */
+        .hotspot.wrong-hit {
+            border: 4px solid var(--error);
+            background: rgba(231, 76, 60, 0.2);
+            animation: shake 0.4s;
+            box-sizing: border-box;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translate(-50%, -50%) translateX(0); }
+            25% { transform: translate(-50%, -50%) translateX(-4px); }
+            75% { transform: translate(-50%, -50%) translateX(4px); }
+        }
+
+        .status-bar {
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            min-height: 28px;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+        .btn-restart { background: var(--primary); color: white; }
+        .btn-solution { background: #95a5a6; color: white; }
+
+        @media (max-width: 600px) {
+            .hotspot { width: 8.5%; padding-bottom: 8.5%; border-width: 3px; }
+            .container { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Карта метро: Юго-Запад Москвы</h2>
+    <p class="description">Klicke auf die roten „М“ der 3 Stationen aus dem Dialog.</p>
+
+    <div class="map-wrapper">
+        <img src="metro_karte.jpg" alt="Metro-Karte">
+
+        <!-- PRÄZISE HOTSPOTS ÜBER DEN ROTEN M-LOGOS -->
+        
+        <!-- 1. Университет (Falsch) -->
+        <div class="hotspot" style="top: 15.6%; left: 34.7%;" onclick="check(this, false, 'Университет')"></div>
+        
+        <!-- 2. Проспект Вернадского (Richtig) -->
+        <div class="hotspot" style="top: 24.1%; left: 48.2%;" data-correct="true" onclick="check(this, true, 'Пр-т Вернадского')"></div>
+        
+        <!-- 3. Юго-Западная (Richtig) -->
+        <div class="hotspot" style="top: 32.2%; left: 22.8%;" data-correct="true" onclick="check(this, true, 'Юго-Западная')"></div>
+        
+        <!-- 4. Тропарёво (Richtig) -->
+        <div class="hotspot" style="top: 45.6%; left: 23.8%;" data-correct="true" onclick="check(this, true, 'Тропарёво')"></div>
+        
+        <!-- 5. Румянцево (Falsch) -->
+        <div class="hotspot" style="top: 65.6%; left: 33.5%;" onclick="check(this, false, 'Румянцево')"></div>
+        
+        <!-- 6. Саларьево (Falsch) -->
+        <div class="hotspot" style="top: 80.7%; left: 29.8%;" onclick="check(this, false, 'Саларьево')"></div>
+    </div>
+
+    <div id="status" class="status-bar">Gefundene Stationen: 0 / 3</div>
+
+    <div class="controls">
+        <button class="btn btn-solution" onclick="showSolution()">Lösung anzeigen</button>
+        <button class="btn btn-restart" onclick="location.reload()">Neustart</button>
+    </div>
+</div>
+
+<script>
+    let found = 0;
+    let finished = false;
+
+    function check(el, isCorrect, name) {
+        if (finished || el.classList.contains('correct-hit')) return;
+
+        const status = document.getElementById('status');
+
+        if (isCorrect) {
+            el.classList.add('correct-hit');
+            found++;
+            status.textContent = `Правильно! Das ist ${name}. (${found}/3)`;
+            status.style.color = "black";
+
+            if (found === 3) {
+                finished = true;
+                status.textContent = "Превосходно! 🎉 Alle 3 Stationen wurden markiert.";
+            }
+        } else {
+            el.classList.add('wrong-hit');
+            status.textContent = `Нет, ${name} ist falsch.`;
+            status.style.color = "var(--error)";
+            setTimeout(() => {
+                el.classList.remove('wrong-hit');
+            }, 500);
+        }
+    }
+
+    function showSolution() {
+        if (finished) return;
+        const hotspots = document.querySelectorAll('.hotspot');
+        hotspots.forEach(h => {
+            if (h.dataset.correct === "true") {
+                h.classList.add('correct-hit');
+            }
+        });
+        finished = true;
+        found = 3;
+        const status = document.getElementById('status');
+        status.textContent = "Lösung: Die markierten Stationen liegen im Suchgebiet.";
+        status.style.color = "black";
+    }
+</script>
+
+</body>
+</html>
