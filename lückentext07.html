@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grammatik-Check: Ksenijas Suche</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+            --text: #2d3436;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 10px;
+            line-height: 1.7;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        h2 { text-align: center; color: var(--text); margin-top: 0; }
+        p.intro { text-align: center; color: #7f8c8d; font-size: 0.95rem; margin-bottom: 25px; }
+
+        .cloze-text {
+            font-size: 1.1rem;
+            background: #fff;
+            padding: 20px;
+            border: 2px solid #f0f0f0;
+            border-radius: 12px;
+            color: var(--text);
+        }
+
+        /* Styling der Dropdowns */
+        select {
+            font-family: inherit;
+            font-size: 1rem;
+            padding: 3px 6px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+            cursor: pointer;
+            margin: 2px 4px;
+            transition: all 0.3s;
+            outline: none;
+            max-width: 190px;
+        }
+
+        select:focus { border-color: var(--primary); }
+
+        /* Zustands-Farben */
+        select.correct { border-color: var(--success); background-color: #eafaf1; color: var(--success); font-weight: bold; }
+        select.wrong { border-color: var(--error); background-color: #fdedec; color: var(--error); }
+
+        .controls {
+            margin-top: 25px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-solution { background: #95a5a6; color: white; }
+        .btn-restart { background: var(--text); color: white; }
+
+        #live-counter {
+            text-align: center;
+            margin-top: 20px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        @media (max-width: 600px) {
+            .cloze-text { font-size: 0.95rem; padding: 15px; line-height: 2; }
+            select { font-size: 0.85rem; max-width: 150px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Грамматика: Прямой ответ</h2>
+    <p class="intro">Wähle die richtige Form. Du siehst sofort, ob es stimmt!</p>
+
+    <div class="cloze-text">
+        Ксения ищет 
+        <select onchange="validate(this)" data-answer="однокомнатную">
+            <option value="">...</option>
+            <option value="однокомнатная">однокомнатная</option>
+            <option value="однокомнатную">однокомнатную</option>
+        </select> 
+        квартиру в 
+        <select onchange="validate(this)" data-answer="районе">
+            <option value="">...</option>
+            <option value="район">район</option>
+            <option value="районе">районе</option>
+        </select> 
+        метро Юго-Западная. Дом должен быть недалеко 
+        <select onchange="validate(this)" data-answer="от">
+            <option value="">...</option>
+            <option value="в">в</option>
+            <option value="от">от</option>
+        </select> 
+        метро. Ксения хочет жить на 
+        <select onchange="validate(this)" data-answer="шестом">
+            <option value="">...</option>
+            <option value="шестой">шестой</option>
+            <option value="шестом">шестом</option>
+        </select> 
+        этаже в доме с 
+        <select onchange="validate(this)" data-answer="лифтом">
+            <option value="">...</option>
+            <option value="лифт">лифт</option>
+            <option value="лифтом">лифтом</option>
+        </select>. 
+        Она будет жить 
+        <select onchange="validate(this)" data-answer="одна">
+            <option value="">...</option>
+            <option value="одна">одна</option>
+            <option value="одной">одной</option>
+        </select> 
+        со своей 
+        <select onchange="validate(this)" data-answer="кошкой">
+            <option value="">...</option>
+            <option value="кошку">кошку</option>
+            <option value="кошкой">кошкой</option>
+        </select>. 
+        Ей нужна квартира с мебелью и 
+        <select onchange="validate(this)" data-answer="техникой">
+            <option value="">...</option>
+            <option value="техника">техника</option>
+            <option value="техникой">техникой</option>
+        </select>. 
+        Она готова 
+        <select onchange="validate(this)" data-answer="заключить">
+            <option value="">...</option>
+            <option value="заключить">заключить</option>
+            <option value="заключает">заключает</option>
+        </select> 
+        договор минимум 
+        <select onchange="validate(this)" data-answer="на год">
+            <option value="">...</option>
+            <option value="на год">на год</option>
+            <option value="в году">в году</option>
+        </select>.
+    </div>
+
+    <div id="live-counter">Richtige Antworten: 0 / 10</div>
+
+    <div class="controls">
+        <button class="btn-solution" onclick="showSolution()">Lösung zeigen</button>
+        <button class="btn-restart" onclick="resetGame()">Neustart</button>
+    </div>
+</div>
+
+<script>
+    function validate(selectElement) {
+        if (selectElement.value === "") {
+            selectElement.className = "";
+        } else if (selectElement.value === selectElement.dataset.answer) {
+            selectElement.className = "correct";
+        } else {
+            selectElement.className = "wrong";
+        }
+        updateCounter();
+    }
+
+    function updateCounter() {
+        const correctOnes = document.querySelectorAll('select.correct').length;
+        const total = document.querySelectorAll('select').length;
+        const counter = document.getElementById('live-counter');
+        counter.textContent = `Richtige Antworten: ${correctOnes} / ${total}`;
+        
+        if (correctOnes === total) {
+            counter.textContent = "Hervorragend! Alles richtig ausgefüllt. 🎉";
+            counter.style.color = "var(--success)";
+        } else {
+            counter.style.color = "var(--primary)";
+        }
+    }
+
+    function showSolution() {
+        const selects = document.querySelectorAll('select');
+        selects.forEach(s => {
+            s.value = s.dataset.answer;
+            s.className = "correct";
+        });
+        updateCounter();
+    }
+
+    function resetGame() {
+        const selects = document.querySelectorAll('select');
+        selects.forEach(s => {
+            s.value = "";
+            s.className = "";
+        });
+        updateCounter();
+    }
+</script>
+
+</body>
+</html>
