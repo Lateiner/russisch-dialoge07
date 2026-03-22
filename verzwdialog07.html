@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dialog-Simulation: Ksenijas Wohnungssuche</title>
+    <style>
+        :root {
+            --makler-color: #3498db;
+            --ksenija-color: #e67e22;
+            --bg-color: #f0f2f5;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 10px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--white);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Fortschrittsanzeige */
+        .progress-bar {
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        #progress-fill {
+            height: 100%;
+            background: var(--makler-color);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        /* Chat-Bereich */
+        .chat-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+            min-height: 150px;
+        }
+
+        .bubble {
+            max-width: 85%;
+            padding: 15px;
+            border-radius: 15px;
+            font-size: 1.05rem;
+            line-height: 1.4;
+            position: relative;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } }
+
+        .bubble-makler {
+            align-self: flex-start;
+            background-color: var(--makler-color);
+            color: white;
+            border-bottom-left-radius: 2px;
+        }
+
+        .bubble-ksenija {
+            align-self: flex-end;
+            background-color: var(--ksenija-color);
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+
+        /* Antwortmöglichkeiten */
+        .options-area {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option-btn {
+            background: white;
+            border: 2px solid #ddd;
+            padding: 12px 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1rem;
+            text-align: left;
+            transition: all 0.2s;
+            color: #333;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            border-color: var(--ksenija-color);
+            background-color: #fff9f4;
+        }
+
+        .option-btn:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .option-btn.correct {
+            background-color: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .option-btn.wrong {
+            background-color: var(--error);
+            color: white;
+            border-color: var(--error);
+            animation: shake 0.4s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        .feedback-text {
+            text-align: center;
+            height: 20px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        #result-screen {
+            text-align: center;
+            display: none;
+        }
+
+        .restart-btn {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 480px) {
+            .bubble { font-size: 0.95rem; padding: 12px; }
+            .option-btn { font-size: 0.9rem; padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="game-ui">
+        <div class="progress-bar"><div id="progress-fill"></div></div>
+        
+        <div class="chat-area" id="chatArea">
+            <!-- Makler-Blase kommt hier hin -->
+        </div>
+
+        <div class="options-area" id="optionsArea">
+            <!-- 3 Antwortmöglichkeiten kommen hier hin -->
+        </div>
+        <div id="feedback" class="feedback-text"></div>
+    </div>
+
+    <div id="result-screen">
+        <h2>Отлично! 🎉</h2>
+        <p>Du hast das Gespräch erfolgreich gemeistert.</p>
+        <div id="score-text"></div>
+        <button class="restart-btn" onclick="initGame()">Nochmal spielen</button>
+    </div>
+</div>
+
+<script>
+    const dialogueSteps = [
+        {
+            makler: "„Здравствуйте! Я Анна. Чем могу помочь?“",
+            options: [
+                { text: "„Меня зовут Ксения, я ищу однокомнатную квартиру.“", isCorrect: true },
+                { text: "„Я хочу купить этот дом прямо сейчас.“", isCorrect: false },
+                { text: "„Здравствуйте! Сколько комнат в этой квартире?“", isCorrect: false }
+            ]
+        },
+        {
+            makler: "„Вы рассматриваете только квартиры в пешей доступности от метро?“",
+            options: [
+                { text: "„Нет, я всегда езжу на машине.“", isCorrect: false },
+                { text: "„Да, максимум 15 минут пешком от метро.“", isCorrect: true },
+                { text: "„Метро мне совсем не нужно.“", isCorrect: false }
+            ]
+        },
+        {
+            makler: "„Вам нужна квартира с мебелью, с техникой?“",
+            options: [
+                { text: "„Нет, мне нужна пустая квартира.“", isCorrect: false },
+                { text: "„Мне не важна техника в квартире.“", isCorrect: false },
+                { text: "„Да. Желательно, чтобы была стиральная и посудомоечная машина.“", isCorrect: true }
+            ]
+        },
+        {
+            makler: "„Какой этаж предпочитаете?“",
+            options: [
+                { text: "„Не первый и не последний. Лучше четвёртый, пятый, шестой.“", isCorrect: true },
+                { text: "„Я хочу жить только на двенадцатом этаже.“", isCorrect: false },
+                { text: "„Мне очень нравится жить на первом этаже.“", isCorrect: false }
+            ]
+        },
+        {
+            makler: "„Будете жить одна?“",
+            options: [
+                { text: "„Да, с кошкой. Кошка ничего не портит.“", isCorrect: true },
+                { text: "„Нет, я буду жить с мужем и собакой.“", isCorrect: false },
+                { text: "„Я буду жить со своими тремя друзьями.“", isCorrect: false }
+            ]
+        },
+        {
+            makler: "„Сколько готовы платить в месяц?“",
+            options: [
+                { text: "„Я хочу платить 100 000 в месяц.“", isCorrect: false },
+                { text: "„До 35 000 без счётчиков.“", isCorrect: true },
+                { text: "„Это секрет, я вам не скажу.“", isCorrect: false }
+            ]
+        },
+        {
+            makler: "„Как долго планируете снимать квартиру?“",
+            options: [
+                { text: "„Только на одну неделю.“", isCorrect: false },
+                { text: "„Пока год, но точно не могу сказать.“", isCorrect: true },
+                { text: "„Я хочу жить здесь всю жизнь.“", isCorrect: false }
+            ]
+        }
+    ];
+
+    let currentStep = 0;
+    let score = 0;
+
+    function initGame() {
+        currentStep = 0;
+        score = 0;
+        document.getElementById('game-ui').style.display = 'block';
+        document.getElementById('result-screen').style.display = 'none';
+        document.getElementById('chatArea').innerHTML = '';
+        updateUI();
+    }
+
+    function updateUI() {
+        const step = dialogueSteps[currentStep];
+        const progress = (currentStep / dialogueSteps.length) * 100;
+        document.getElementById('progress-fill').style.width = progress + '%';
+        document.getElementById('feedback').textContent = '';
+
+        // Makler-Blase erstellen
+        const chatArea = document.getElementById('chatArea');
+        chatArea.innerHTML = ''; // Vorherige Blasen leeren für Fokus auf aktuellen Schritt
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble bubble-makler';
+        bubble.textContent = step.makler;
+        chatArea.appendChild(bubble);
+
+        // Optionen erstellen
+        const optionsArea = document.getElementById('optionsArea');
+        optionsArea.innerHTML = '';
+        step.options.forEach(option => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.textContent = option.text;
+            btn.onclick = () => handleChoice(option, btn);
+            optionsArea.appendChild(btn);
+        });
+    }
+
+    function handleChoice(option, btn) {
+        const buttons = document.querySelectorAll('.option-btn');
+        buttons.forEach(b => b.disabled = true);
+
+        if (option.isCorrect) {
+            btn.classList.add('correct');
+            document.getElementById('feedback').textContent = 'Правильно! ✓';
+            document.getElementById('feedback').style.color = 'var(--success)';
+            score++;
+            
+            // Ksenija-Blase hinzufügen für den Flow
+            setTimeout(() => {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble bubble-ksenija';
+                bubble.textContent = option.text;
+                document.getElementById('chatArea').appendChild(bubble);
+            }, 500);
+
+            setTimeout(() => {
+                currentStep++;
+                if (currentStep < dialogueSteps.length) {
+                    updateUI();
+                } else {
+                    showEnd();
+                }
+            }, 2000);
+        } else {
+            btn.classList.add('wrong');
+            document.getElementById('feedback').textContent = 'Неправильно. Попробуй ещё раз! ✗';
+            document.getElementById('feedback').style.color = 'var(--error)';
+            
+            setTimeout(() => {
+                btn.classList.remove('wrong');
+                buttons.forEach(b => b.disabled = false);
+            }, 1200);
+        }
+    }
+
+    function showEnd() {
+        document.getElementById('progress-fill').style.width = '100%';
+        document.getElementById('game-ui').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+        document.getElementById('score-text').textContent = `Du hast das Gespräch mit ${score} richtigen Antworten abgeschlossen.`;
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>
