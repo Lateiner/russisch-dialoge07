@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satzbau-Baukasten: Russisch</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --success: #2ecc71;
+            --error: #e74c3c;
+            --bg: #f8f9fa;
+            --tile-bg: #ffffff;
+            --text-dark: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .instruction { color: #7f8c8d; margin-bottom: 20px; font-size: 0.95rem; }
+
+        /* Bereich für den entstehenden Satz */
+        .drop-zone {
+            min-height: 80px;
+            background: #fff;
+            border: 2px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* Bereich für die verfügbaren Wörter */
+        .word-bank {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #edf2f7;
+            border-radius: 12px;
+        }
+
+        /* Wort-Kacheln */
+        .tile {
+            background: var(--tile-bg);
+            border: 2px solid #e2e8f0;
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            user-select: none;
+            font-weight: 600;
+            color: var(--text-dark);
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            font-size: 1.1rem;
+        }
+
+        .tile:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .tile:active { transform: scale(0.95); }
+
+        .tile.selected {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        /* Feedback-Farben */
+        .correct-sentence .tile {
+            background-color: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .wrong-sentence .tile {
+            background-color: var(--error);
+            color: white;
+            border-color: var(--error);
+            animation: shake 0.4s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-check { background: var(--primary); color: white; }
+        .btn-reset { background: #a0aec0; color: white; }
+        .btn-next { background: var(--success); color: white; display: none; }
+
+        .progress { margin-top: 15px; font-size: 0.8rem; color: #a0aec0; }
+
+        @media (max-width: 480px) {
+            .tile { padding: 8px 12px; font-size: 0.95rem; }
+            .container { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 id="sentence-title">Baue den Satz</h2>
+    <p id="translation" style="font-style: italic; color: #4a5568; margin-bottom: 10px;"></p>
+    <p class="instruction">Tippe die Wörter in der richtigen Reihenfolge an.</p>
+
+    <div class="drop-zone" id="dropZone"></div>
+    <div class="word-bank" id="wordBank"></div>
+
+    <div class="controls">
+        <button class="btn btn-reset" onclick="resetCurrentSentence()">Löschen</button>
+        <button class="btn btn-check" id="checkBtn" onclick="checkSentence()">Überprüfen</button>
+        <button class="btn btn-next" id="nextBtn" onclick="nextSentence()">Nächster Satz</button>
+    </div>
+
+    <div class="progress" id="progressInfo">Satz 1 / 5</div>
+</div>
+
+<script>
+    const sentences = [
+        { 
+            russian: ["Я", "хочу", "снять", "однокомнатную", "квартиру"], 
+            german: "Ich möchte eine Ein-Zimmer-Wohnung mieten." 
+        },
+        { 
+            russian: ["Ксения", "ищет", "квартиру", "около", "метро"], 
+            german: "Ksenija sucht eine Wohnung in der Nähe der Metro." 
+        },
+        { 
+            russian: ["В", "квартире", "есть", "стиральная", "машина"], 
+            german: "In der Wohnung gibt es eine Waschmaschine." 
+        },
+        { 
+            russian: ["Она", "будет", "жить", "одна", "с", "кошкой"], 
+            german: "Sie wird alleine mit einer Katze leben." 
+        },
+        { 
+            russian: ["Договор", "готова", "заключить", "на", "год"], 
+            german: "Sie ist bereit, den Vertrag für ein Jahr abzuschließen." 
+        }
+    ];
+
+    let currentIndex = 0;
+    let userWords = [];
+
+    function initGame() {
+        if (currentIndex >= sentences.length) {
+            showEnd();
+            return;
+        }
+        userWords = [];
+        document.getElementById('dropZone').innerHTML = '';
+        document.getElementById('dropZone').classList.remove('correct-sentence', 'wrong-sentence');
+        document.getElementById('checkBtn').style.display = 'block';
+        document.getElementById('nextBtn').style.display = 'none';
+        document.getElementById('translation').textContent = sentences[currentIndex].german;
+        document.getElementById('progressInfo').textContent = `Satz ${currentIndex + 1} / ${sentences.length}`;
+        
+        const bank = document.getElementById('wordBank');
+        bank.innerHTML = '';
+
+        // Wörter mischen
+        const shuffled = [...sentences[currentIndex].russian].sort(() => Math.random() - 0.5);
+
+        shuffled.forEach((word, index) => {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.textContent = word;
+            tile.onclick = () => addWord(word, tile);
+            bank.appendChild(tile);
+        });
+    }
+
+    function addWord(word, tileElement) {
+        tileElement.classList.add('selected');
+        userWords.push({ word, tile: tileElement });
+        
+        const newTile = document.createElement('div');
+        newTile.className = 'tile';
+        newTile.textContent = word;
+        // Bei Klick im Zielbereich: Wort zurücklegen
+        newTile.onclick = () => removeWord(word, newTile, tileElement);
+        
+        document.getElementById('dropZone').appendChild(newTile);
+        document.getElementById('dropZone').classList.remove('wrong-sentence');
+    }
+
+    function removeWord(word, targetTile, originalTile) {
+        targetTile.remove();
+        originalTile.classList.remove('selected');
+        userWords = userWords.filter(item => item.tile !== originalTile);
+    }
+
+    function resetCurrentSentence() {
+        initGame();
+    }
+
+    function checkSentence() {
+        const correctOrder = sentences[currentIndex].russian;
+        const dropZone = document.getElementById('dropZone');
+        
+        if (userWords.length !== correctOrder.length) {
+            dropZone.classList.add('wrong-sentence');
+            return;
+        }
+
+        let isCorrect = true;
+        for (let i = 0; i < correctOrder.length; i++) {
+            if (userWords[i].word !== correctOrder[i]) {
+                isCorrect = false;
+                break;
+            }
+        }
+
+        if (isCorrect) {
+            dropZone.classList.add('correct-sentence');
+            document.getElementById('checkBtn').style.display = 'none';
+            document.getElementById('nextBtn').style.display = 'block';
+        } else {
+            dropZone.classList.add('wrong-sentence');
+        }
+    }
+
+    function nextSentence() {
+        currentIndex++;
+        initGame();
+    }
+
+    function showEnd() {
+        document.querySelector('.container').innerHTML = `
+            <h2>Отлично! 🎉</h2>
+            <p>Du hast alle Sätze erfolgreich gebaut.</p>
+            <button class="btn btn-check" onclick="location.reload()">Nochmal spielen</button>
+        `;
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>
