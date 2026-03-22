@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live-Simulation: Ksenijas Suchprofil</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --makler: #3498db;
+            --ksenija: #e67e22;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .status-header {
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .audio-visual {
+            font-size: 3rem;
+            margin: 20px 0;
+            height: 60px;
+        }
+
+        .interaction-area {
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 15px;
+            padding: 20px;
+            border: 2px dashed #ddd;
+            border-radius: 15px;
+            background: #fff;
+        }
+
+        .requirement-text {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        .btn-yes { background-color: var(--success); }
+        .btn-no { background-color: var(--error); }
+        .btn:active { transform: scale(0.95); }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .btn-start {
+            background-color: var(--makler);
+            padding: 20px;
+            font-size: 1.2rem;
+            width: 100%;
+        }
+
+        #feedback {
+            margin-top: 15px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            min-height: 1.5em;
+        }
+
+        .score-board {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+
+        /* Animationen */
+        .speaking { animation: pulse 1s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="status-header">
+        <div id="step-info">Simulation bereit</div>
+        <div class="score-board">Punkte: <span id="score">0</span> / 6</div>
+    </div>
+
+    <div id="audio-visual" class="audio-visual">🎧</div>
+
+    <div class="interaction-area" id="interaction-area">
+        <button class="btn btn-start" id="start-btn" onclick="startSimulation()">Simulation starten</button>
+        <div id="quiz-content" style="display:none;">
+            <div id="requirement-label" class="requirement-text">In das Protokoll aufnehmen?</div>
+            <p id="current-item-text" style="margin-bottom: 20px; color: #555;"></p>
+            <div class="btn-group">
+                <button class="btn btn-yes" onclick="userChoice(true)">ДА (JA)</button>
+                <button class="btn btn-no" onclick="userChoice(false)">НЕТ (NEIN)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="feedback"></div>
+</div>
+
+<script>
+    const synth = window.speechSynthesis;
+    let score = 0;
+    let currentStep = 0;
+    let maleVoice = null;
+    let femaleVoice = null;
+
+    // Stimmen laden
+    function loadVoices() {
+        const voices = synth.getVoices();
+        maleVoice = voices.find(v => v.lang.startsWith('ru') && (v.name.includes('Maxim') || v.name.includes('Pavel') || v.name.includes('Male')));
+        femaleVoice = voices.find(v => v.lang.startsWith('ru') && (v.name.includes('Milena') || v.name.includes('Katya') || v.name.includes('Female')));
+        
+        // Fallback auf die erste russische Stimme, falls spezifische nicht gefunden
+        if (!maleVoice) maleVoice = voices.find(v => v.lang.startsWith('ru'));
+        if (!femaleVoice) femaleVoice = voices.find(v => v.lang.startsWith('ru'));
+    }
+    synth.onvoiceschanged = loadVoices;
+    loadVoices();
+
+    const script = [
+        {
+            makler: "Здравствуйте! Какую квартиру вы ищете?",
+            ksenija: "Я ищу однокомнатную квартиру.",
+            requirement: "Однокомнатная квартира (1-Zimmer)",
+            correct: true
+        },
+        {
+            makler: "Хотите жить на первом этаже?",
+            ksenija: "Нет, только не первый этаж!",
+            requirement: "Первый этаж (Erdgeschoss)",
+            correct: false
+        },
+        {
+            makler: "Вам нужна стиральная машина?",
+            ksenija: "Да, обязательно. И посудомоечная машина тоже нужна.",
+            requirement: "Стиральная и посудомоечная машины",
+            correct: true
+        },
+        {
+            makler: "А балкон вам нужен?",
+            ksenija: "Да, я очень хочу балкон.",
+            requirement: "Балкон",
+            correct: true
+        },
+        {
+            makler: "У вас есть домашние животные?",
+            ksenija: "Да, у меня кошка.",
+            requirement: "Можно с кошкой (Katze erlaubt)",
+            correct: true
+        },
+        {
+            makler: "Вам нужен консьерж в подъезде?",
+            ksenija: "Нет, это совсем не важно.",
+            requirement: "Консьерж (Concierge)",
+            correct: false
+        }
+    ];
+
+    function startSimulation() {
+        document.getElementById('start-btn').style.display = 'none';
+        document.getElementById('quiz-content').style.display = 'none';
+        score = 0;
+        currentStep = 0;
+        updateScore();
+        playStep();
+    }
+
+    async function speak(text, isMakler) {
+        return new Promise(resolve => {
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'ru-RU';
+            utter.voice = isMakler ? maleVoice : femaleVoice;
+            utter.rate = 0.85;
+            
+            document.getElementById('audio-visual').textContent = isMakler ? "👨‍💼" : "👱‍♀️";
+            document.getElementById('audio-visual').classList.add('speaking');
+            
+            utter.onend = () => {
+                document.getElementById('audio-visual').classList.remove('speaking');
+                resolve();
+            };
+            synth.speak(utter);
+        });
+    }
+
+    async function playStep() {
+        const step = script[currentStep];
+        document.getElementById('step-info').textContent = `Schritt ${currentStep + 1} von ${script.length}`;
+        document.getElementById('quiz-content').style.display = 'none';
+        document.getElementById('feedback').textContent = "";
+        document.getElementById('audio-visual').textContent = "🎧";
+
+        await speak(step.makler, true);
+        await new Promise(r => setTimeout(r, 500));
+        await speak(step.ksenija, false);
+
+        // Nach dem Dialog: Quiz anzeigen
+        document.getElementById('quiz-content').style.display = 'block';
+        document.getElementById('current-item-text').textContent = step.requirement;
+    }
+
+    function userChoice(choice) {
+        const step = script[currentStep];
+        const feedback = document.getElementById('feedback');
+        
+        if (choice === step.correct) {
+            feedback.textContent = "Правильно! ✓ (Richtig)";
+            feedback.style.color = "var(--success)";
+            score++;
+        } else {
+            feedback.textContent = "Неправильно! ✗ (Falsch)";
+            feedback.style.color = "var(--error)";
+        }
+
+        updateScore();
+        
+        // Deaktiviere Buttons kurz
+        const buttons = document.querySelectorAll('.btn-group .btn');
+        buttons.forEach(b => b.disabled = true);
+
+        setTimeout(() => {
+            buttons.forEach(b => b.disabled = false);
+            currentStep++;
+            if (currentStep < script.length) {
+                playStep();
+            } else {
+                finishSimulation();
+            }
+        }, 2000);
+    }
+
+    function updateScore() {
+        document.getElementById('score').textContent = score;
+    }
+
+    function finishSimulation() {
+        document.getElementById('quiz-content').style.display = 'none';
+        document.getElementById('step-info').textContent = "Simulation beendet";
+        document.getElementById('audio-visual').textContent = "🏆";
+        const feedback = document.getElementById('feedback');
+        feedback.style.color = "var(--primary)";
+        feedback.innerHTML = `Fertig! Dein Makler-Protokoll ist zu ${Math.round((score/script.length)*100)}% korrekt.`;
+        document.getElementById('start-btn').style.display = 'block';
+        document.getElementById('start-btn').textContent = "Nochmal versuchen";
+    }
+</script>
+
+</body>
+</html>
