@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wer sagt was? - Wohnungssuche</title>
+    <style>
+        :root {
+            --makler-color: #3498db;
+            --ksenija-color: #e67e22;
+            --bg-color: #f0f2f5;
+            --success: #27ae60;
+            --error: #e74c3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .instruction { color: #666; margin-bottom: 20px; }
+
+        /* Die aktuelle Sprechblase */
+        .bubble-area {
+            min-height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            perspective: 1000px;
+        }
+
+        .speech-bubble {
+            background: #fff;
+            border: 3px solid #ddd;
+            padding: 20px;
+            border-radius: 20px;
+            font-size: 1.2rem;
+            font-weight: 500;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            max-width: 90%;
+            transition: all 0.3s;
+        }
+
+        /* Das kleine Dreieck der Sprechblase */
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 15px 15px 0;
+            border-style: solid;
+            border-color: #ddd transparent transparent;
+        }
+
+        /* Auswahl-Buttons */
+        .selection-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .person-btn {
+            background: white;
+            border: 3px solid #eee;
+            border-radius: 15px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .person-btn:hover { transform: translateY(-5px); }
+        .person-btn:active { transform: scale(0.95); }
+
+        .btn-makler { border-color: var(--makler-color); color: var(--makler-color); }
+        .btn-ksenija { border-color: var(--ksenija-color); color: var(--ksenija-color); }
+
+        .avatar {
+            font-size: 3rem;
+            margin-bottom: 5px;
+        }
+
+        .name-tag { font-weight: bold; font-size: 1rem; }
+        .role-tag { font-size: 0.8rem; opacity: 0.8; }
+
+        /* Feedback */
+        #feedback {
+            margin-top: 20px;
+            font-weight: bold;
+            min-height: 1.5em;
+        }
+
+        .correct { color: var(--success); }
+        .wrong { color: var(--error); animation: shake 0.4s; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .score-display {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        .hidden { display: none; }
+
+        .restart-btn {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 450px) {
+            .speech-bubble { font-size: 1rem; padding: 15px; }
+            .avatar { font-size: 2.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Кто это говорит?</h2>
+    <p class="instruction">Ordne den Satz der richtigen Person zu.</p>
+
+    <div class="bubble-area">
+        <div id="bubble" class="speech-bubble">Lade...</div>
+    </div>
+
+    <div class="selection-area" id="controls">
+        <button class="person-btn btn-makler" onclick="checkAnswer('Р')">
+            <span class="avatar">👩‍💼</span>
+            <span class="name-tag">Р (Анна)</span>
+            <span class="role-tag">Maklerin</span>
+        </button>
+        <button class="person-btn btn-ksenija" onclick="checkAnswer('К')">
+            <span class="avatar">👱‍♀️</span>
+            <span class="name-tag">К (Ксения)</span>
+            <span class="role-tag">Kundin</span>
+        </button>
+    </div>
+
+    <p id="feedback"></p>
+    <div class="score-display" id="score">Satz: 1 / 8</div>
+
+    <div id="result-screen" class="hidden">
+        <h3>Bravo! 🎉</h3>
+        <p id="final-stats"></p>
+        <button class="restart-btn" onclick="initGame()">Nochmal spielen</button>
+    </div>
+</div>
+
+<script>
+    const phrases = [
+        { text: "Здравствуйте! Я Анна. Чем могу помочь?", speaker: "Р" },
+        { text: "Да, я ищу однокомнатную квартиру.", speaker: "К" },
+        { text: "Вы рассматриваете только квартиры в пешей доступности от метро?", speaker: "Р" },
+        { text: "Да. Желательно, чтобы в квартире была стиральная машина.", speaker: "К" },
+        { text: "Какой этаж предпочитаете?", speaker: "Р" },
+        { text: "Да, с кошкой. Кошка ничего не портит.", speaker: "К" },
+        { text: "Сколько готовы платить в месяц?", speaker: "Р" },
+        { text: "Я подберу в течение нескольких часов для вас варианты квартир.", speaker: "Р" },
+        { text: "Договор готова заключить на год.", speaker: "К" },
+        { text: "Напишите мне сейчас СМС с адресом вашей почты.", speaker: "Р" }
+    ];
+
+    let currentPhrases = [];
+    let currentIndex = 0;
+    let score = 0;
+    let canClick = true;
+
+    function initGame() {
+        currentPhrases = [...phrases].sort(() => Math.random() - 0.5).slice(0, 8);
+        currentIndex = 0;
+        score = 0;
+        canClick = true;
+        document.getElementById('result-screen').classList.add('hidden');
+        document.getElementById('controls').classList.remove('hidden');
+        document.getElementById('bubble').classList.remove('hidden');
+        document.getElementById('feedback').textContent = "";
+        showNextPhrase();
+    }
+
+    function showNextPhrase() {
+        if (currentIndex >= currentPhrases.length) {
+            showEnd();
+            return;
+        }
+        document.getElementById('bubble').textContent = currentPhrases[currentIndex].text;
+        document.getElementById('score').textContent = `Satz: ${currentIndex + 1} / ${currentPhrases.length}`;
+        document.getElementById('feedback').textContent = "";
+        canClick = true;
+    }
+
+    function checkAnswer(choice) {
+        if (!canClick) return;
+        canClick = false;
+
+        const correctSpeaker = currentPhrases[currentIndex].speaker;
+        const feedbackEl = document.getElementById('feedback');
+
+        if (choice === correctSpeaker) {
+            feedbackEl.textContent = "Правильно! ✓";
+            feedbackEl.className = "correct";
+            score++;
+        } else {
+            feedbackEl.textContent = "Неправильно! ✗";
+            feedbackEl.className = "wrong";
+        }
+
+        setTimeout(() => {
+            currentIndex++;
+            showNextPhrase();
+        }, 1500);
+    }
+
+    function showEnd() {
+        document.getElementById('controls').classList.add('hidden');
+        document.getElementById('bubble').classList.add('hidden');
+        document.getElementById('score').textContent = "";
+        document.getElementById('result-screen').classList.remove('hidden');
+        document.getElementById('final-stats').textContent = `Du hast ${score} von ${currentPhrases.length} Sätzen richtig zugeordnet.`;
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>
