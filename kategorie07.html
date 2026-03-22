@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kategorienspiel: Wohnungseinrichtung</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --furniture-color: #e67e22;
+            --tech-color: #9b59b6;
+            --success-color: #2ecc71;
+            --error-color: #e74c3c;
+            --bg-color: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        #progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .word-box {
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            border: 3px dashed #ddd;
+            border-radius: 12px;
+            background: #fff;
+        }
+
+        #current-word {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .basket-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .basket {
+            padding: 20px 10px;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .basket:active {
+            transform: scale(0.95);
+        }
+
+        .basket-furniture { background-color: var(--furniture-color); }
+        .basket-tech { background-color: var(--tech-color); }
+
+        .icon { font-size: 2rem; }
+
+        .feedback {
+            margin-top: 15px;
+            height: 24px;
+            font-weight: bold;
+        }
+
+        .success { color: var(--success-color); }
+        .error { color: var(--error-color); animation: shake 0.4s; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        .result-screen {
+            display: none;
+        }
+
+        button.restart-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 400px) {
+            #current-word { font-size: 1.4rem; }
+            .basket { font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <div id="play-screen">
+        <h2>Wohin gehört es?</h2>
+        <p>Ordne den Begriff der richtigen Kategorie zu.</p>
+        
+        <div class="progress-bar">
+            <div id="progress-fill"></div>
+        </div>
+
+        <div class="word-box">
+            <div id="current-word">Lade...</div>
+        </div>
+
+        <div class="basket-container">
+            <button class="basket basket-furniture" onclick="checkAnswer('furniture')">
+                <span class="icon">🪑</span>
+                Мебель<br>(Möbel)
+            </button>
+            <button class="basket basket-tech" onclick="checkAnswer('tech')">
+                <span class="icon">🔌</span>
+                Техника<br>(Geräte)
+            </button>
+        </div>
+
+        <div id="feedback" class="feedback"></div>
+    </div>
+
+    <div id="result-screen" class="result-screen">
+        <h2>Super! 🎉</h2>
+        <p id="final-score"></p>
+        <button class="restart-btn" onclick="startGame()">Nochmal spielen</button>
+    </div>
+</div>
+
+<script>
+    const items = [
+        { word: "кровать", cat: "furniture" },
+        { word: "холодильник", cat: "tech" },
+        { word: "шкаф", cat: "furniture" },
+        { word: "микроволновка", cat: "tech" },
+        { word: "стул", cat: "furniture" },
+        { word: "плита", cat: "tech" },
+        { word: "стол", cat: "furniture" },
+        { word: "телевизор", cat: "tech" },
+        { word: "стиральная машина", cat: "tech" },
+        { word: "посудомоечная машина", cat: "tech" }
+    ];
+
+    let currentIndex = 0;
+    let score = 0;
+    let shuffledItems = [];
+
+    function startGame() {
+        currentIndex = 0;
+        score = 0;
+        shuffledItems = [...items].sort(() => Math.random() - 0.5);
+        document.getElementById('play-screen').style.display = 'block';
+        document.getElementById('result-screen').style.display = 'none';
+        updateUI();
+    }
+
+    function updateUI() {
+        const progress = (currentIndex / shuffledItems.length) * 100;
+        document.getElementById('progress-fill').style.width = progress + "%";
+        
+        if (currentIndex < shuffledItems.length) {
+            document.getElementById('current-word').textContent = shuffledItems[currentIndex].word;
+            document.getElementById('feedback').textContent = "";
+            document.getElementById('feedback').className = "feedback";
+        } else {
+            showResults();
+        }
+    }
+
+    function checkAnswer(category) {
+        const feedbackEl = document.getElementById('feedback');
+        const correctCategory = shuffledItems[currentIndex].cat;
+
+        if (category === correctCategory) {
+            feedbackEl.textContent = "Richtig! ✓";
+            feedbackEl.className = "feedback success";
+            score++;
+        } else {
+            feedbackEl.textContent = "Leider falsch! ✗";
+            feedbackEl.className = "feedback error";
+        }
+
+        // Kurze Pause, damit der Schüler das Feedback sieht
+        setTimeout(() => {
+            currentIndex++;
+            updateUI();
+        }, 800);
+    }
+
+    function showResults() {
+        document.getElementById('play-screen').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+        document.getElementById('final-score').textContent = 
+            `Du hast ${score} von ${shuffledItems.length} Begriffen korrekt einsortiert.`;
+    }
+
+    // Spiel starten
+    startGame();
+</script>
+
+</body>
+</html>
