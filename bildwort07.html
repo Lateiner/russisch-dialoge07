@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Russisch-Übung: Wohnungsgrundriss</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --success: #2ecc71;
+            --error: #e74c3c;
+            --dark: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .instructions {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+        }
+
+        /* Responsives Image-Overlay System */
+        .image-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            max-width: 800px; /* Originalgröße des Bildes beachten */
+            margin: 0 auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            line-height: 0;
+        }
+
+        .image-wrapper img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Die interaktiven Hotspots */
+        .hotspot {
+            position: absolute;
+            width: 6%; /* Quadratische Hotspots, die mit dem Bild skalieren */
+            padding-bottom: 6%; 
+            background: rgba(255, 255, 255, 0.7);
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10;
+            transform: translate(-50%, -50%);
+            transition: all 0.2s;
+            line-height: 0;
+        }
+
+        .hotspot:hover:not(.matched) {
+            transform: translate(-50%, -50%) scale(1.2);
+            background: var(--primary);
+        }
+
+        .hotspot.matched {
+            background: var(--success);
+            border-color: var(--success);
+            cursor: default;
+        }
+
+        .hotspot.matched::after {
+            content: "✓";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.5vw; /* Skaliert mit Bildschirmgröße */
+            font-weight: bold;
+        }
+
+        /* Wort-Bank */
+        .word-bank {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 30px;
+            min-height: 60px;
+        }
+
+        .word-card {
+            padding: 12px 20px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            user-select: none;
+            line-height: 1.2;
+        }
+
+        .word-card.selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: translateY(-3px);
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+        }
+
+        .word-card.hidden {
+            opacity: 0.1;
+            pointer-events: none;
+        }
+
+        #status-msg {
+            margin-top: 20px;
+            font-weight: bold;
+            min-height: 24px;
+        }
+
+        .restart-btn {
+            display: none;
+            margin: 20px auto;
+            padding: 10px 25px;
+            background: var(--dark);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        /* Anpassungen für Mobile */
+        @media (max-width: 600px) {
+            .hotspot { width: 8%; padding-bottom: 8%; }
+            .word-card { padding: 8px 15px; font-size: 0.9rem; }
+            .hotspot.matched::after { font-size: 4vw; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Где находится эта комната?</h2>
+    <p class="instructions">Wähle ein Wort und klicke auf den richtigen Raum im Plan.</p>
+
+    <div class="image-wrapper" id="wrapper">
+        <!-- ERSETZE DAS SRC-ATTRIBUT DURCH DEINEN BILD-PFAD -->
+        <img src="grundriss.jpg" alt="Wohnungsgrundriss">
+
+        <!-- Hotspots (Positionen in % vom Bild) -->
+        <div class="hotspot" style="top: 30%; left: 30%;" data-id="комната"></div>
+        <div class="hotspot" style="top: 25%; left: 58%;" data-id="кухня"></div>
+        <div class="hotspot" style="top: 20%; left: 75%;" data-id="ванная"></div>
+        <div class="hotspot" style="top: 55%; left: 60%;" data-id="коридор"></div>
+        <div class="hotspot" style="top: 45%; left: 78%;" data-id="гардеробная"></div>
+        <div class="hotspot" style="top: 85%; left: 38%;" data-id="балкон"></div>
+    </div>
+
+    <div id="status-msg"></div>
+
+    <div class="word-bank" id="word-bank"></div>
+
+    <button class="restart-btn" id="restart-btn" onclick="initGame()">Neustart</button>
+</div>
+
+<script>
+    const vocabulary = [
+        { id: "комната", word: "комната" },
+        { id: "кухня", word: "кухня" },
+        { id: "ванная", word: "ванная" },
+        { id: "коридор", word: "коридор" },
+        { id: "гардеробная", word: "гардеробная" },
+        { id: "балкон", word: "балкон" }
+    ];
+
+    let selectedWord = null;
+    let matchesFound = 0;
+
+    function initGame() {
+        matchesFound = 0;
+        selectedWord = null;
+        document.getElementById('status-msg').textContent = "";
+        document.getElementById('status-msg').style.color = "black";
+        document.getElementById('restart-btn').style.display = "none";
+        document.getElementById('word-bank').style.display = "flex";
+
+        const bank = document.getElementById('word-bank');
+        bank.innerHTML = "";
+
+        // Mische die Wörter
+        const shuffled = [...vocabulary].sort(() => Math.random() - 0.5);
+
+        shuffled.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'word-card';
+            card.textContent = item.word;
+            card.onclick = () => selectWord(card, item.id);
+            bank.appendChild(card);
+        });
+
+        // Hotspots zurücksetzen
+        document.querySelectorAll('.hotspot').forEach(spot => {
+            spot.classList.remove('matched');
+            spot.onclick = () => checkMatch(spot);
+        });
+    }
+
+    function selectWord(card, id) {
+        document.querySelectorAll('.word-card').forEach(c => c.classList.remove('selected'));
+        selectedWord = { card, id };
+        card.classList.add('selected');
+        document.getElementById('status-msg').textContent = "Tippe jetzt auf den passenden Punkt im Bild.";
+        document.getElementById('status-msg').style.color = "var(--primary)";
+    }
+
+    function checkMatch(spot) {
+        if (!selectedWord || spot.classList.contains('matched')) return;
+
+        const status = document.getElementById('status-msg');
+
+        if (selectedWord.id === spot.dataset.id) {
+            // Erfolg
+            spot.classList.add('matched');
+            selectedWord.card.classList.add('hidden');
+            selectedWord.card.classList.remove('selected');
+            status.textContent = "Правильно! ✓ (Richtig!)";
+            status.style.color = "var(--success)";
+            selectedWord = null;
+            matchesFound++;
+
+            if (matchesFound === vocabulary.length) {
+                endGame();
+            }
+        } else {
+            // Fehler
+            status.textContent = "Нет! Попробуй ещё раз. (Nein! Versuch es nochmal.)";
+            status.style.color = "var(--error)";
+            spot.style.borderColor = "var(--error)";
+            setTimeout(() => {
+                if (!spot.classList.contains('matched')) {
+                    spot.style.borderColor = "var(--primary)";
+                }
+            }, 600);
+        }
+    }
+
+    function endGame() {
+        document.getElementById('status-msg').textContent = "Отлично! 🎉 Du hast alle Räume gefunden.";
+        document.getElementById('word-bank').style.display = "none";
+        document.getElementById('restart-btn').style.display = "block";
+    }
+
+    // Spiel zum ersten Mal starten
+    initGame();
+</script>
+
+</body>
+</html>
