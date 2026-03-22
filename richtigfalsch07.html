@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Textverständnis: Ksenijas Suche</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f5f6fa;
+            --text: #2d3436;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .progress-container {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .progress-bar {
+            flex-grow: 1;
+            height: 10px;
+            background: #dfe6e9;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        #progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .question-box {
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        #question-text {
+            font-size: 1.3rem;
+            line-height: 1.5;
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s, color 0.2s;
+            color: white;
+        }
+
+        .btn-true { background-color: var(--success); }
+        .btn-false { background-color: var(--error); }
+
+        .btn:active { transform: scale(0.95); }
+
+        #feedback {
+            margin-top: 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            min-height: 1.5em;
+        }
+
+        .result-screen {
+            display: none;
+        }
+
+        .restart-btn {
+            background: var(--text);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 400px) {
+            #question-text { font-size: 1.1rem; }
+            .btn { padding: 15px; font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="quiz-ui">
+        <div class="progress-container">
+            <span id="q-counter">1/10</span>
+            <div class="progress-bar"><div id="progress-fill"></div></div>
+        </div>
+
+        <div class="question-box">
+            <p id="question-text">Lädt...</p>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-true" onclick="handleAnswer(true)">Richtig</button>
+            <button class="btn btn-false" onclick="handleAnswer(false)">Falsch</button>
+        </div>
+
+        <p id="feedback"></p>
+    </div>
+
+    <div id="result-ui" class="result-screen">
+        <h2 id="result-title">Fertig!</h2>
+        <p id="result-text"></p>
+        <button class="restart-btn" onclick="initGame()">Neustart</button>
+    </div>
+</div>
+
+<script>
+    const questions = [
+        { text: "Ksenija sucht eine Drei-Zimmer-Wohnung.", correct: false, info: "Sie sucht eine Ein-Zimmer-Wohnung (однокомнатная квартира)." },
+        { text: "Sie hat eine Empfehlung von ihrem Freund Wassili bekommen.", correct: true, info: "Richtig! Wassili hat die Maklerin empfohlen." },
+        { text: "Die Wohnung soll maximal 15 Minuten zu Fuß von der Metro entfernt sein.", correct: true, info: "Richtig! 'Максимум 15 минут пешком'." },
+        { text: "In der Wohnung wünscht sich Ksenija eine Spülmaschine.", correct: true, info: "Richtig! Sie fragt nach einer 'посудомоечная машина'." },
+        { text: "Ksenija möchte am liebsten im ersten Stock (Erdgeschoss) wohnen.", correct: false, info: "Falsch! Sie möchte nicht im ersten Stock wohnen ('Не первый')." },
+        { text: "Sie wird zusammen mit ihrem Freund einziehen.", correct: false, info: "Falsch! Sie wird alleine wohnen ('Будете жить одна? - Да')." },
+        { text: "Ksenija hat einen Hund.", correct: false, info: "Falsch! Sie hat eine Katze (кошка)." },
+        { text: "Die Miete darf bis zu 35.000 Rubel kosten.", correct: true, info: "Richtig! Das ist ihr Budget." },
+        { text: "Ein Balkon ist für Ksenija eine absolute Bedingung.", correct: false, info: "Falsch! Ein Balkon wäre gut, ist aber nicht obligatorisch ('необязательно')." },
+        { text: "Ksenija ist bereit, ab morgen Wohnungen zu besichtigen.", correct: true, info: "Richtig! Sie will so schnell wie möglich anfangen." }
+    ];
+
+    let currentIndex = 0;
+    let score = 0;
+    let canAnswer = true;
+
+    function initGame() {
+        currentIndex = 0;
+        score = 0;
+        canAnswer = true;
+        document.getElementById('quiz-ui').style.display = 'block';
+        document.getElementById('result-ui').style.display = 'none';
+        showQuestion();
+    }
+
+    function showQuestion() {
+        const q = questions[currentIndex];
+        document.getElementById('question-text').textContent = q.text;
+        document.getElementById('q-counter').textContent = `${currentIndex + 1}/${questions.length}`;
+        document.getElementById('progress-fill').style.width = `${((currentIndex) / questions.length) * 100}%`;
+        document.getElementById('feedback').textContent = "";
+        canAnswer = true;
+    }
+
+    function handleAnswer(answer) {
+        if (!canAnswer) return;
+        canAnswer = false;
+
+        const q = questions[currentIndex];
+        const feedbackEl = document.getElementById('feedback');
+
+        if (answer === q.correct) {
+            feedbackEl.textContent = "Richtig! ✓";
+            feedbackEl.style.color = "var(--success)";
+            score++;
+        } else {
+            feedbackEl.textContent = "Falsch! ✗ " + q.info;
+            feedbackEl.style.color = "var(--error)";
+        }
+
+        setTimeout(() => {
+            currentIndex++;
+            if (currentIndex < questions.length) {
+                showQuestion();
+            } else {
+                showResults();
+            }
+        }, 2200); // Etwas längere Zeit, um die Info zu lesen
+    }
+
+    function showResults() {
+        document.getElementById('quiz-ui').style.display = 'none';
+        document.getElementById('result-ui').style.display = 'block';
+        document.getElementById('progress-fill').style.width = "100%";
+        
+        let msg = "";
+        if (score === questions.length) msg = "Perfekt! Du hast alles verstanden. 🎉";
+        else if (score >= 7) msg = "Gut gemacht! Du hast den Dialog gut verstanden. 👍";
+        else msg = "Schau dir den Dialog vielleicht noch einmal an. 📖";
+
+        document.getElementById('result-text').textContent = `Du hast ${score} von ${questions.length} Fragen richtig beantwortet. ${msg}`;
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>
