@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wortschatz-Check: Ksenijas Suche</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --success-bg: #d4edda;
+            --success-text: #155724;
+            --error-bg: #f8d7da;
+            --error-text: #721c24;
+            --bg: #f8f9fa;
+            --text-dark: #2d3436;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        h2 { text-align: center; color: var(--text-dark); margin-top: 0; }
+        .instruction { text-align: center; color: #636e72; margin-bottom: 25px; font-size: 0.95rem; }
+
+        /* Der Textblock */
+        .text-content {
+            line-height: 2.5;
+            font-size: 1.2rem;
+            color: var(--text-dark);
+            background: #fff;
+            padding: 25px;
+            border: 2px solid #edf2f7;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        /* Styling der Lücken */
+        .gap {
+            display: inline-block;
+            min-width: 120px;
+            border-bottom: 2px solid var(--primary);
+            background: #f1f2f6;
+            margin: 0 4px;
+            padding: 0 12px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            border-radius: 5px 5px 0 0;
+            color: var(--primary); /* Farbe für die Pünktchen */
+        }
+
+        .gap.active { background: #e3f2fd; }
+        
+        /* Feedback-Zustände (Gute Lesbarkeit durch hohen Kontrast) */
+        .gap.correct { 
+            color: var(--success-text) !important; 
+            background-color: var(--success-bg); 
+            border-bottom: 2px solid #28a745;
+            cursor: default; 
+        }
+
+        .gap.wrong { 
+            color: var(--error-text) !important; 
+            background-color: var(--error-bg); 
+            border-bottom: 2px solid #dc3545;
+            animation: shake 0.4s; 
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        /* Wortbank */
+        .word-bank {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            padding: 20px;
+            background: #edf2f7;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .word-tile {
+            background: white;
+            border: 2px solid #cbd5e0;
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1.05rem;
+            transition: all 0.2s;
+            user-select: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .word-tile:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .word-tile.selected { background: var(--primary); color: white; border-color: var(--primary); }
+        .word-tile.used { opacity: 0; pointer-events: none; transform: scale(0.5); }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-solution { background: #95a5a6; color: white; }
+        .btn-restart { background: var(--text-dark); color: white; }
+
+        #live-status {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 15px;
+            min-height: 24px;
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 600px) {
+            .text-content { font-size: 1rem; line-height: 3; padding: 15px; }
+            .gap { min-width: 100px; padding: 0 8px; }
+            .word-tile { font-size: 0.95rem; padding: 8px 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Текст: Ксения ищет жильё</h2>
+    <p class="instruction">Wähle ein Wort aus und klicke auf die passende Lücke. Richtiges wird sofort grün markiert.</p>
+
+    <div class="text-content">
+        Ксения хочет <span class="gap" data-answer="снять">...</span> квартиру. 
+        Ей нужна <span class="gap" data-answer="однокомнатную">однокомнатную</span> квартира недалеко от метро. 
+        Она ищет жильё на шестом <span class="gap" data-answer="этаже">...</span>. 
+        Ей важно, чтобы в доме был <span class="gap" data-answer="лифт">...</span>. 
+        Она будет жить со своей <span class="gap" data-answer="кошкой">...</span>. 
+        В квартире должна быть мебель и квартира с <span class="gap" data-answer="техникой">...</span>. 
+        Ксения готова <span class="gap" data-answer="платить">...</span> 35 000 рублей в месяц. 
+        Её интересует, включена ли <span class="gap" data-answer="коммуналка">...</span> в эту сумму. 
+        Она хочет заключить <span class="gap" data-answer="договор">...</span> на год.
+        Она готова смотреть квартиры <span class="gap" data-answer="завтра">...</span>.
+    </div>
+
+    <div class="word-bank" id="wordBank"></div>
+
+    <div id="live-status"></div>
+
+    <div class="controls">
+        <button class="btn btn-solution" onclick="showSolution()">Lösung anzeigen</button>
+        <button class="btn btn-restart" onclick="initGame()">Neustart</button>
+    </div>
+</div>
+
+<script>
+    const words = [
+        "снять", "однокомнатную", "этаже", "лифт", "кошкой", 
+        "техникой", "платить", "коммуналка", "договор", "завтра"
+    ];
+
+    let selectedTile = null;
+    let correctCount = 0;
+
+    function initGame() {
+        correctCount = 0;
+        selectedTile = null;
+        document.getElementById('live-status').textContent = "";
+        
+        const bank = document.getElementById('wordBank');
+        bank.innerHTML = "";
+
+        const shuffled = [...words].sort(() => Math.random() - 0.5);
+        shuffled.forEach(word => {
+            const tile = document.createElement('div');
+            tile.className = 'word-tile';
+            tile.textContent = word;
+            tile.onclick = () => selectWord(tile);
+            bank.appendChild(tile);
+        });
+
+        document.querySelectorAll('.gap').forEach(gap => {
+            gap.textContent = "...";
+            gap.className = "gap";
+            gap.onclick = () => fillGap(gap);
+        });
+    }
+
+    function selectWord(tile) {
+        document.querySelectorAll('.word-tile').forEach(t => t.classList.remove('selected'));
+        selectedTile = tile;
+        tile.classList.add('selected');
+    }
+
+    function fillGap(gap) {
+        if (!selectedTile || gap.classList.contains('correct')) return;
+
+        const userWord = selectedTile.textContent;
+        const correctAnswer = gap.dataset.answer;
+
+        // Wort wird in die Lücke geschrieben (Lesbarkeit!)
+        gap.textContent = userWord;
+
+        if (userWord === correctAnswer) {
+            // Richtig: Text bleibt, wird dunkelgrün auf hellgrün
+            gap.className = "gap correct";
+            selectedTile.classList.add('used');
+            selectedTile = null;
+            correctCount++;
+            checkWin();
+        } else {
+            // Falsch: Text wird kurz dunkelrot auf hellrot, dann zurückgesetzt
+            gap.className = "gap wrong";
+            setTimeout(() => {
+                if (!gap.classList.contains('correct')) {
+                    gap.className = "gap";
+                    gap.textContent = "...";
+                }
+            }, 1000);
+        }
+    }
+
+    function checkWin() {
+        const status = document.getElementById('live-status');
+        if (correctCount === words.length) {
+            status.textContent = "Hervorragend! Alles richtig ausgefüllt. 🎉";
+            status.style.color = "#28a745";
+        } else {
+            status.textContent = `Fortschritt: ${correctCount} / ${words.length}`;
+            status.style.color = "var(--primary)";
+        }
+    }
+
+    function showSolution() {
+        document.querySelectorAll('.gap').forEach(gap => {
+            gap.textContent = gap.dataset.answer;
+            gap.className = "gap correct";
+        });
+        document.querySelectorAll('.word-tile').forEach(t => t.classList.add('used'));
+        correctCount = words.length;
+        checkWin();
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>
