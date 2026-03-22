@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dialog-Puzzle: Ksenijas Suche</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --makler-bg: #e1f5fe;
+            --ksenija-bg: #fff3e0;
+            --success: #2ecc71;
+            --error: #e74c3c;
+            --bg: #f5f6fa;
+            --dark: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 10px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        h2 { text-align: center; color: var(--dark); margin-top: 0; }
+        p.instruction { text-align: center; color: #7f8c8d; font-size: 0.9rem; margin-bottom: 20px; }
+
+        /* Bereich für den aufgebauten Dialog */
+        .target-area {
+            min-height: 120px;
+            background: #fdfdfd;
+            border: 2px dashed #ccc;
+            border-radius: 15px;
+            padding: 10px;
+            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        /* Bereich für die ungeordneten Sätze */
+        .source-area {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .sentence {
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .sentence-makler { background-color: var(--makler-bg); border-color: #b3e5fc; }
+        .sentence-ksenija { background-color: var(--ksenija-bg); border-color: #ffe0b2; }
+
+        .sentence:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+
+        .prefix { font-weight: bold; margin-right: 8px; color: var(--dark); min-width: 25px; }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            color: white;
+        }
+
+        .btn-check { background-color: var(--primary); }
+        .btn-solution { background-color: #95a5a6; }
+        .btn-restart { background-color: var(--dark); }
+
+        .btn:hover { opacity: 0.9; }
+        .btn:active { transform: scale(0.98); }
+
+        #feedback {
+            text-align: center;
+            font-weight: bold;
+            min-height: 24px;
+            margin-top: 10px;
+        }
+
+        .correct { color: var(--success); }
+        .error-msg { color: var(--error); }
+
+        @media (max-width: 450px) {
+            .sentence { font-size: 0.85rem; padding: 8px; }
+            h2 { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Dialog-Puzzle</h2>
+    <p class="instruction">Tippe die Sätze in der richtigen Reihenfolge an!</p>
+
+    <div class="target-area" id="targetArea"></div>
+
+    <div class="source-area" id="sourceArea"></div>
+
+    <div id="feedback"></div>
+
+    <div class="controls">
+        <button class="btn btn-check" id="checkBtn" onclick="checkDialog()">Überprüfen</button>
+        <button class="btn btn-solution" id="solutionBtn" onclick="showSolution()">Lösung anzeigen</button>
+        <button class="btn btn-restart" id="restartBtn" onclick="initGame()">Neustart</button>
+    </div>
+</div>
+
+<script>
+    const dialogData = [
+        { id: 1, speaker: "Р", text: "„Здравствуйте! Я Анна. Чем могу помочь?“" },
+        { id: 2, speaker: "К", text: "„Здравствуйте! Да, я ищу однокомнатную квартиру.“" },
+        { id: 3, speaker: "Р", text: "„Вы рассматриваете только квартиры в пешей доступности от метро?“" },
+        { id: 4, speaker: "К", text: "„Да, максимум 15 минут пешком от метро.“" },
+        { id: 5, speaker: "Р", text: "„Вам нужна квартира с мебелью, с техникой?“" },
+        { id: 6, speaker: "К", text: "„Да, желательно, чтобы была стиральная машина.“" },
+        { id: 7, speaker: "Р", text: "„Сколько готовы платить в месяц?“" },
+        { id: 8, speaker: "К", text: "„До 35000 без счётчиков.“" }
+    ];
+
+    let userSelection = [];
+    let isGameOver = false;
+
+    function initGame() {
+        userSelection = [];
+        isGameOver = false;
+        document.getElementById('targetArea').innerHTML = '';
+        document.getElementById('feedback').textContent = '';
+        document.getElementById('checkBtn').style.display = 'block';
+        document.getElementById('solutionBtn').style.display = 'block';
+        
+        const sourceArea = document.getElementById('sourceArea');
+        sourceArea.innerHTML = '';
+        sourceArea.style.display = 'flex';
+
+        // Mische die Sätze
+        const shuffled = [...dialogData].sort(() => Math.random() - 0.5);
+
+        shuffled.forEach(item => {
+            const div = createSentenceDiv(item);
+            div.onclick = () => moveToTarget(item, div);
+            sourceArea.appendChild(div);
+        });
+    }
+
+    function createSentenceDiv(item) {
+        const div = document.createElement('div');
+        div.className = `sentence ${item.speaker === 'Р' ? 'sentence-makler' : 'sentence-ksenija'}`;
+        div.innerHTML = `<span class="prefix">${item.speaker}:</span> <span>${item.text}</span>`;
+        return div;
+    }
+
+    function moveToTarget(item, element) {
+        if (isGameOver) return;
+        element.remove();
+        userSelection.push(item);
+        
+        const targetDiv = createSentenceDiv(item);
+        targetDiv.onclick = () => moveToSource(item, targetDiv);
+        document.getElementById('targetArea').appendChild(targetDiv);
+        document.getElementById('feedback').textContent = '';
+    }
+
+    function moveToSource(item, element) {
+        if (isGameOver) return;
+        userSelection = userSelection.filter(i => i.id !== item.id);
+        element.remove();
+        
+        const sourceDiv = createSentenceDiv(item);
+        sourceDiv.onclick = () => moveToTarget(item, sourceDiv);
+        document.getElementById('sourceArea').appendChild(sourceDiv);
+    }
+
+    function checkDialog() {
+        const feedback = document.getElementById('feedback');
+        if (userSelection.length < dialogData.length) {
+            feedback.textContent = "Der Dialog ist noch nicht vollständig!";
+            feedback.className = "error-msg";
+            return;
+        }
+
+        let allCorrect = true;
+        userSelection.forEach((item, index) => {
+            if (item.id !== dialogData[index].id) allCorrect = false;
+        });
+
+        if (allCorrect) {
+            feedback.textContent = "Правильно! 🎉 Die Reihenfolge ist perfekt.";
+            feedback.className = "correct";
+            isGameOver = true;
+            document.getElementById('checkBtn').style.display = 'none';
+            document.getElementById('solutionBtn').style.display = 'none';
+        } else {
+            feedback.textContent = "Die Reihenfolge stimmt noch nicht. Probier es noch einmal!";
+            feedback.className = "error-msg";
+        }
+    }
+
+    function showSolution() {
+        isGameOver = true;
+        document.getElementById('targetArea').innerHTML = '';
+        document.getElementById('sourceArea').innerHTML = '';
+        document.getElementById('sourceArea').style.display = 'none';
+        
+        dialogData.forEach(item => {
+            const targetDiv = createSentenceDiv(item);
+            targetDiv.style.cursor = "default";
+            document.getElementById('targetArea').appendChild(targetDiv);
+        });
+
+        document.getElementById('feedback').textContent = "Hier ist die richtige Reihenfolge.";
+        document.getElementById('feedback').className = "correct";
+        document.getElementById('checkBtn').style.display = 'none';
+        document.getElementById('solutionBtn').style.display = 'none';
+    }
+
+    initGame();
+</script>
+
+</body>
+</html
+>
